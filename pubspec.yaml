@@ -1,0 +1,28 @@
+name: soko_mgl_script
+description: Mongolian script text preview app with font selection
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^1.0.4
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
+  screenshot: ^2.1.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: MongolianScript
+      fonts:
+        - asset: assets/fonts/MongolianScript.ttf
+    - family: CmdAshitseden
+      fonts:
+        - asset: assets/fonts/CmdAshitseden.ttf
