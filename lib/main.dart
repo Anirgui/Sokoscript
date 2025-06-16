@@ -1,120 +1,140 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:path_provider/path_provider.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  runApp(SokoMglScriptApp());
+}
 
-class MyApp extends StatelessWidget {
+class SokoMglScriptApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Soko MGL Script',
-      home: HomeScreen(),
+      home: ScriptEditorPage(),
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class ScriptEditorPage extends StatefulWidget {
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  _ScriptEditorPageState createState() => _ScriptEditorPageState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  String selectedFont = 'MongolianScript';
-  String text = 'ᠮᠣᠩᠭᠣᠯ ᠪᠢᠴᠢᠭ';
-  File? backgroundImage;
-  ScreenshotController screenshotController = ScreenshotController();
+class _ScriptEditorPageState extends State<ScriptEditorPage> {
+  final TextEditingController _controller = TextEditingController();
+  final ScreenshotController _screenshotController = ScreenshotController();
+  String _selectedFontFamily = 'MongolianScript';
+  File? _backgroundImage;
 
-  Future<void> pickImage() async {
+  List<String> _fonts = ['MongolianScript', 'CmdAshitseden'];
+
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
     if (pickedFile != null) {
       setState(() {
-        backgroundImage = File(pickedFile.path);
+        _backgroundImage = File(pickedFile.path);
       });
     }
   }
 
-  Future<void> saveImage() async {
-    final image = await screenshotController.capture();
-    if (image == null) return;
+  Future<void> _saveAsImage() async {
+    final imageBytes = await _screenshotController.capture();
+    if (imageBytes == null) return;
 
-    final directory = await getExternalStorageDirectory();
-    final path = '${directory!.path}/soko_output.png';
-    final file = File(path);
-    await file.writeAsBytes(image);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Зураг хадгалагдлаа: $path')),
-    );
+    if (await Permission.storage.request().isGranted) {
+      final directory = await getExternalStorageDirectory();
+      final path = '${directory!.path}/mongolian_script_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(path);
+      await file.writeAsBytes(imageBytes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Зураг хадгалагдлаа: $path')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Permission denied')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Soko MGL Script')),
+      appBar: AppBar(
+        title: Text('Soko MGL Script'),
+      ),
       body: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              DropdownButton<String>(
-                value: selectedFont,
-                items: ['MongolianScript', 'CmdAshitseden'].map((font) {
-                  return DropdownMenuItem(
-                    value: font,
-                    child: Text(font),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => selectedFont = value);
-                  }
-                },
-              ),
-              IconButton(
-                icon: Icon(Icons.image),
-                onPressed: pickImage,
-              ),
-              IconButton(
-                icon: Icon(Icons.save),
-                onPressed: saveImage,
-              ),
-            ],
-          ),
           Expanded(
             child: Screenshot(
-              controller: screenshotController,
+              controller: _screenshotController,
               child: Container(
-                decoration: backgroundImage != null
-                    ? BoxDecoration(
-                        image: DecorationImage(
-                          image: FileImage(backgroundImage!),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  image: _backgroundImage != null
+                      ? DecorationImage(
+                          image: FileImage(_backgroundImage!),
                           fit: BoxFit.cover,
-                        ),
-                      )
-                    : null,
+                        )
+                      : null,
+                ),
                 alignment: Alignment.center,
-                child: RotatedBox(
-                  quarterTurns: 3, // Vertical Mongolian
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      fontFamily: selectedFont,
-                      fontSize: 40,
-                    ),
+                child: Text(
+                  _controller.text,
+                  style: TextStyle(
+                    fontFamily: _selectedFontFamily,
+                    fontSize: 32,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(8.0),
-            child: TextField(
-              onChanged: (value) => setState(() => text = value),
-              decoration: InputDecoration(labelText: 'Монгол бичгээр текст'),
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(labelText: 'Монгол бичгийн текст'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: 10),
+                DropdownButton<String>(
+                  value: _selectedFontFamily,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedFontFamily = newValue!;
+                    });
+                  },
+                  items: _fonts.map((font) {
+                    return DropdownMenuItem(
+                      value: font,
+                      child: Text(font),
+                    );
+                  }).toList(),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _pickImage,
+                      child: Text('Арын зураг сонгох'),
+                    ),
+                    ElevatedButton(
+                      onPressed: _saveAsImage,
+                      child: Text('Зураг болгох'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
